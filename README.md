@@ -539,3 +539,316 @@ plugins: [
     })
 ]
 ``````
+
+#### 1. production模块打包自带优化
+
+* tree shaking
+
+tree shaking 是一个术语，通常用于打包移除javascript中未引用的代码，它依赖于es6模块系统中的import 和 export的`静态结构`的特性
+
+开发时引入一个模块后，如果只使用其中一个功能，上线打包时只会把用到的功能打包进bundle，其他没用到的功能不会打包进来，可以实现最基础的优化
+
+* scope hoisting
+
+scope hoisting的作用是将模块之间的关系进行推测，可以让webpack打包出来的代码文件更小、运行更快
+
+scope hoisting的实现原理：分析出来模块之间的依赖关系，尽可能的吧打散的模块合并到一个函数中去，但前提不能造成代码冗余。因此只有被引用一次的模块才会被合并
+
+由于scope hoisting需要分析模块的依赖关系，因此远吗必须使用es6模块化语句，不然它将无法生效
+
+* 代码压缩
+
+所有代码使用`UglifyjsPlugin`插件进行压缩、混淆
+
+
+#### 2. css优化
+
+###### 2.1将css提取到独立的文件
+
+`mini-css-extract-plugin`用于将css提取为独立的文件的插件，对每个包含css的js文件都会创建一个css文件，支持按需加载css和sourceMap
+
+只能在webpack4中使用，有如下优势：
+* 异步加载
+* 不重复复编译, 性能更好
+* 更容易使用
+* 只针对css
+
+1. 安装 `npm i mini-css-extract-plugin -D`
+2.  在webpack中引入插件
+
+`const MiniCssExtractPlugin = require('mini-css-extract-plugin')`
+
+3. 创建插件对象，配置抽离的css文件名，支持placeholder语法
+
+``````javascript
+	plugins: [
+		new MiniCssExtractPlugin({
+			filename: '[name].css'
+		})
+	]
+
+``````
+
+4. 将原来配置文件中的所有`style-loader`替换为`MiniCssExtractPlugin.loader`
+``````javascript
+rules: [
+	{
+		test: /\.css$/, //匹配的文件后缀
+		// webpack读取loader，从右向左读取，会将css交给最右侧的laoder,loader从右向左链式调用
+		// css-loader解析css, style-loader将解析的结果放入HTML中
+		use: [MiniCssExtractPlugin.loader, 'css-loader']
+	},
+	{
+		test: /\.less$/, use: [MiniCssExtractPlugin.loader, 'css-loader', 'less-loader']
+	},
+	{
+		test: /\.s(a|c)ss$/, use: [MiniCssExtractPlugin.loader, 'css-loader', 'sass-loader']
+	}
+]
+
+``````
+
+###### 2.2 css自动添加前缀
+
+1. 安装插件
+
+`npm i postcss-loader autoprefixer -D`
+
+2. 修改webpack配置文件中的loader，将`postcss-loader`放置在`css-loader`的右边
+
+``````javascript
+{
+	test: /\.css$/, //匹配的文件后缀
+	// webpack读取loader，从右向左读取，会将css交给最右侧的laoder,loader从右向左链式调用
+	// css-loader解析css, style-loader将解析的结果放入HTML中
+	use: [MiniCssExtractPlugin.loader, 'css-loader', 'postcss-loader']
+},
+{
+	test: /\.less$/, use: [MiniCssExtractPlugin.loader, 'css-loader', 'postcss-loader', 'less-loader']
+},
+{
+	test: /\.s(a|c)ss$/, use: [MiniCssExtractPlugin.loader, 'css-loader', 'postcss-loader', 'sass-loader']
+}
+
+``````
+
+3.在根目录下添加postcss的配置文件`postcss.config.js`
+
+4.在postcss的配置文件中使用插件
+
+``````javascript
+module.export = {
+    plugins: [require('autoprefixer')]
+}
+
+``````
+
+###### 2.3开启css代码压缩
+
+需要使用`optimize-css-assets-webpack-plugin -D`
+
+但是由于配置css压缩会覆盖掉webpack默认的优化配置，导致js代码无法压缩，所以还需要手动把js代码压缩插件导入`tarser-webpack-plugin`
+
+1. 安装 `cnpm i optimize-css-assets-webpack-plugin tarser-webpack-plugin`
+
+2.导入插件
+
+``````javascript
+const TerserJSPlugin = require('terser-webpack-plugin')
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin')
+``````
+
+3.在webpack配置文件中添加配置节点
+
+``````javascript
+
+optimization: {
+	minimizer: [new TerserJSPlugin({}), new OptimizeCSSAssetsPlugin({})]
+},
+``````
+
+tips：webpack4默认采用的js压缩插件是：`uglifyjs-webpack-plugin`，在`mini-css-extarct-plugin`上一个版本中还推荐使用该插件，但是最新的v0.6建议使用`terser-webpack-plugin`来完成js代码压缩，具体原因官网未说明。
+
+
+#### 3.js优化
+
+Code Splitting是webpack打包最终的优化特性之一。此特性能将代码分离到不同的bundle中，然后可以按需加载或并行加载这些文件，代码分离可以用于获取更小的bundle，以及控制资源加载优先级，如果使用合理，会极大影响加载时间
+
+有三种常用代码分离方法：
+* 入口起点： 使用`entry`配置手动地分离代码
+* 防止重复：使用`SplitChunksPlugin`去重和分离chunk
+* 动态导入：通过模块的内联函数调用来分离代码
+
+###### 3.1手动配置多入口
+
+1. 在webpack配置文件中添加多入口
+``````javascript
+enry: {
+    main: './src/main.js',
+    other: './src/other.js'
+},
+output: {
+    path: path.join(__dirname, '..', './dist'),
+    file: '[name].bundle.js',
+    publicPath: '/'
+}
+``````
+
+2.在main.js和Other.js中都引入一个模块，并使用功能
+``````javascript
+import $ from 'jquery'
+
+$(function() {
+    $('<div></div>').html('main').appendTo('body')
+})
+``````
+
+``````javascript
+import $ from 'jquery'
+
+$('<div></div>').html('other').appendTo('body')
+``````
+
+3.修改package.json的脚本，添加一个使用dev配置文件进行打包的脚本，（目的是不压缩代码检查bundle时更方便）
+
+``````javascript
+"dev-build": "webpack --config ./build/webpack.dev.js"
+``````
+
+这种方法存在的一些问题：
+
+* 如果入口chunks之间存在重复的模块，哪些重复的模块会被引入到各个bundle中
+* 这种方法不够灵活，并且不能将核心应用程序逻辑进行动态拆分
+
+###### 3.2 抽离公共代码
+
+tips：Webpack v4以上使用的插件`SplitChunksPlugin`，以前使用的`CommonChunkPlugin`已经被移除，最新版的webpack中只需要在配置文件中的`optimization`节点下添加`splitChunks`属性即可进行相关配置
+
+1. 修改webpack配置文件
+
+``````javascript
+
+optimization: {
+
+    splitChunks: {
+        chunks: 'all'
+    }
+}
+
+``````
+
+2. 运行`npm run dev-build`
+
+3. 查看dist目录，已经把公共jQuery模块抽离到一个单独的文件中
+
+
+###### 3.3 动态导入（懒加载）
+
+webpack默认是允许import语法动态导入的，但是需要babel插件的支持，最新版babel的插件包为：`@/babel/plugin-syntax-dynamic-import`，需要注意动态导入最大的好处是实现了`懒加载`，用到哪个模块加载哪一个模块，可以提高SPA应用程序的`首屏加载速度`，Vue, React, angular 框架的路由懒加载原理一样
+
+1. 安装babel插件
+
+`npm i @babel/plugin-syntax-dynamix-import -D`
+
+2. 修改.babel配置文件，添加`@babel/plugin-syntax-dynamix-import`插件
+
+``````javascript
+{
+    "presets": ["@babel/env"],
+    "plugins": [
+        "@babel/plugin-proposal-class-properties"，
+        "@babel/plugin-transform-runtime",
+        "@babel/plugin-syntax-dynamic-import"
+    ]
+}
+
+``````
+3. 将jQuery模块进行动态导入
+``````javascript
+<!--import('jquery')返回的就是一个promise对象-->
+
+function getComponent() {
+
+    return import('jquery').then(({default: $}) => {
+        return $('<div></div>').html('main')
+    })
+}
+
+
+``````
+
+4. 给页面某个元素添加事件，动态调用getComponent方法创建元素
+
+``````javascript
+
+window.onload = function() {
+    document.getElementById('bth').onclick = function() {
+        getComponent().then(item => {
+            item.appendTo('body')
+        })
+    }
+}
+
+``````
+
+###### 3.4 splitChunksPlugin配置
+Webpack4之后，使用`SplitChunsPlugin`插件代替了以前的`CommonsChunkPlugin`，而`SplitChunsPlugin`的配置只需要在webpack配置文件中的`optimization`节点下的`splitChunks`进行修改即可，如果没有任何的修改，则会使用默认配置
+
+默认的`SplitChunksPlugin`配置适用于绝大多数用户
+
+webpack会基于默认配置自动分隔代码：
+
+* 公共代码块来自node_modules文件夹的组件模块
+* 打包的代码块大小超过30K（最小化压缩之前）
+* 按需加载代码块时，同时发送的请求数量不应该超过5
+* 页面初始化，同时发送的请求最大数量不应该超过3
+
+
+以下是SplitChunksPlugin的默认配置
+``````javascript
+module.exports = {
+    optimization: {
+        splitChunks: {
+              chunks: 'async', // async 只对异步加载的模块进行分割， all 对所有的模块分割   initial-
+              minSize: 30000, // 模块最小大于30kb才进行分割
+              maxSize: 0, // 模块大小无限制，只要大于30Kb都拆分
+              minChunks: 1,  //模块至少引用一次才拆分
+              maxAsyncRequests: 5, // 异步加载时同时发送的请求数量最大不能超过5，超过5的部分就不会再拆分
+              maxInitialRequests: 3, // 页面初始化同时发送的请求数量最大不能超过3，超过3的的部分不会再拆分
+              automaticNameDelimiter: '~', //默认的连接符
+              automaticNameMaxLength: 30,
+              name: true, // 拆分的chunk名，true则表示根据模块名和cacheGroup的key来自动生成chunk名
+              cacheGroups: { // 缓存组配置，上面配置读取完成后进行拆分，如果需要把多个模块拆分到一个文件，就需要缓存，所以命名为缓存组
+                vendors: {  //自定义缓存组名
+                  test: /[\\/]node_modules[\\/]/, // 检查node_modules目录，只要模块在该目录下就是用上面配置拆分这个组
+                  priority: -10 // 权重-10，决定哪个组优先配置，
+                },
+                default: { // 默认缓存组名
+                  minChunks: 2, // 至少引用两次才会被拆分
+                  priority: -20, // 权重-20
+                  reuseExistingChunk: true //如果主入口引入了两个模块，其中一个正好引用了后一个，就会直接复用，无需引用两次
+                }
+          }
+    }
+  }
+}
+``````
+
+
+#### 4.noParse
+
+在引入一些第三方模块的时候，例如jQuery，bootstrap，我们知道其内部肯定不会依赖其他模块，因为我们最终用到的只是一个单独的js文件或css文件
+
+所以此时如果webpack再去解析她们的内部依赖关系，其实是非常浪费时间的，我们需要组织webpack浪费精力去解析这些明知道没有依赖的库
+
+
+可以在webpack配置文件module节点下加上`noParse`，并配置正则来确定不需要解析依赖关系的模块
+
+``````javascript
+
+module: {
+    noParse: /jquery|bootstrap/
+}
+
+``````
+
