@@ -851,4 +851,39 @@ module: {
 }
 
 ``````
+#### IgnorePlugin
 
+在引入一些第三方模块的时候，例如moment，内部会做i8n国际化处理，里面会包含很多的语言包，而语言包打包时候会很占用空间，如果我们项目只需要中文，或者少数语言，可以忽略掉所有的语言包，然后按需引入语言包，从而提高构建性能
+
+需要忽略第三方模块内部依赖的其他模块，只需要三步：
+1. 首先找到moment以来的语言包是什么
+2. 使用ignorePlugin插件忽略掉依赖
+3. 需要某些依赖的时候自动手动引入
+
+
+1. 安装moment
+```js
+npm i moment
+```
+2. webpack.config.js 的plugins处添加配置
+
+```js
+let webpack = require('webpack');
+plugins: [
+  // 忽略解析三方包里插件
+  new webpack.IgnorePlugin(/\.\/locale/, /moment/)
+]
+```
+
+3. index.js代码片段
+
+```js
+//
+import moment from 'moment'
+// 引入中文
+import 'moment/locale/zh-cn'
+// 设置中文
+moment.locale('zh-cn');
+let momentStr = moment().subtract(10, 'days').calendar();
+console.log('现在时间：', momentStr);
+```

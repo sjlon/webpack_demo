@@ -13,10 +13,10 @@ module.exports = {
     // mode: 'production',
     entry: './src/index.js',
     output: {
-        filename: 'main.[hash:6].js',
+        filename: 'js/main.[hash:6].js',
         publicPath: '/',
         path: path.resolve(__dirname, '../dist'),
-        chunkFilename: '[name].bundle.js'
+        chunkFilename: 'js/[name].bundle.js'
     },
     // 配置模块解析
     resolve:{
@@ -30,11 +30,13 @@ module.exports = {
     // 性能优化
     optimization: {
         minimizer: [new TerserJSPlugin({}), new OptimizeCSSAssetsPlugin({})],
-
+        splitChunks: {
+            chunks: 'all'
+        }
     },
     plugins: [
         new MiniCssExtractPlugin({
-            filename: '[name].css'
+            filename: 'style/[name].css'
         }),
         new HtmlWebpackPlugin({
             // 文件名
@@ -71,6 +73,7 @@ module.exports = {
 
     ],
     module: {
+        noParse: /jquery|lodash/,
         rules: [
             {
                 test: /\.css$/,
