@@ -1,5 +1,5 @@
-console.log($)
-console.log(_)
+// console.log($)
+// console.log(_)
 console.log(IS_ENV, 'IS_ENV')
 
 function PromiseS () {

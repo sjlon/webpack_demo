@@ -15,7 +15,8 @@ module.exports = {
     output: {
         filename: 'main.[hash:6].js',
         publicPath: '/',
-        path: path.resolve(__dirname, '../dist')
+        path: path.resolve(__dirname, '../dist'),
+        chunkFilename: '[name].bundle.js'
     },
     // 配置模块解析
     resolve:{
@@ -28,7 +29,8 @@ module.exports = {
     },
     // 性能优化
     optimization: {
-        minimizer: [new TerserJSPlugin({}), new OptimizeCSSAssetsPlugin({})]
+        minimizer: [new TerserJSPlugin({}), new OptimizeCSSAssetsPlugin({})],
+
     },
     plugins: [
         new MiniCssExtractPlugin({
@@ -60,11 +62,11 @@ module.exports = {
                 { from: path.resolve(__dirname, '../public'), to: '' }
         ]),
         // 署名插件
-        new webpack.BannerPlugin('webpack BanenrPlugin添加注释信息'),
+        // new webpack.BannerPlugin('webpack BanenrPlugin添加注释信息'),
         // 给每一个模块提供一个全局变量， 每个模块都可以访问$ _
         new webpack.ProvidePlugin({
-            $: 'jquery',
-            _: 'lodash'
+            // $: 'jquery',
+            // _: 'lodash'
         }),
 
     ],

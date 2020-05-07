@@ -5,10 +5,19 @@ import '@/style/index.less'
 import Icon from './images/500x500.jpg'
 import axios from 'axios'
 import str  from './hotModule'
-console.log(str, 'str')
 require('./demo')
-function component() {
-    let ele = document.createElement('div')
+
+//  function component() {
+//     let ele = document.createElement('div')
+//     ele.innerHTML = _.join(['hello', 'dfdfdsfas', '!111111111111'], ' ')
+//     ele.classList.add('weight')
+
+//     return ele
+
+// }
+async function component() {
+        let ele = document.createElement('div')
+        const { default: _} = await import('lodash')
     ele.innerHTML = _.join(['hello', 'dfdfdsfas', '!111111111111'], ' ')
     ele.classList.add('weight')
 
@@ -20,9 +29,17 @@ function ImgEle() {
     return myIcon
 }
 
-document.body.appendChild(component())
+component().then(res => {
+    document.body.appendChild(res)
+})
+// document.body.appendChild(component())
 document.body.appendChild(ImgEle())
-axios.get('/api/getUserInfo').then(res => console.log(res, 'axios'))
+async function getUserInfo() {
+    let data = await axios.get('/api/getUserInfo')
+    console.log(data)
+}
+getUserInfo()
+
 
 // if(module.hot) {
 //     module.hot.accept('./hotModule.js', () => {

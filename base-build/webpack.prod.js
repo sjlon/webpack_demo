@@ -14,5 +14,5 @@ module.exports = merge(baseConfig, {
         new webpack.DefinePlugin({
             IS_ENV: false
         })
-    ]
+    ],
 })
