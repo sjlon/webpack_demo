@@ -1,0 +1,8 @@
+div{
+    color: red;
+    transform: rotate(-90deg);
+    font-size: 30px;
+}
+
+:fullscreen {
+}
